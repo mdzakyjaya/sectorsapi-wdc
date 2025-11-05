@@ -1,8 +1,7 @@
 (function() {
-    // Create the connector object
     var myConnector = tableau.makeConnector();
 
-    // Define the schema (the columns Tableau will see)
+    // Define schema
     myConnector.getSchema = function(schemaCallback) {
         var cols = [
             { id: "subsector", alias: "Subsector", dataType: tableau.dataTypeEnum.string },
@@ -19,47 +18,54 @@
         schemaCallback([tableSchema]);
     };
 
-    // Download the data
+    // Fetch data
     myConnector.getData = function(table, doneCallback) {
-        var apiKey = "21217cdb0e5128de3b4ccfac0a112b221b95557ac7748144cb82ca54cb053580"; // IMPORTANT: Replace with your actual key
+        var connData = JSON.parse(tableau.connectionData);
+        var apiKey = connData.apiKey;
 
-        var apiCall = $.ajax({
-            url: "https://sectors.app/api/subsectors/",
+        $.ajax({
+            url: "https://api.sectors.app/v1/subsectors/",
             type: "GET",
             dataType: 'json',
-            beforeSend: function(xhr) {
-                xhr.setRequestHeader("Authorization", "Bearer " + apiKey);
+            headers: {
+                "Authorization": "Bearer " + apiKey
+            },
+            success: function(response) {
+                var data = response;
+                var tableData = [];
+
+                for (var i = 0; i < data.length; i++) {
+                    tableData.push({
+                        "subsector": data[i].subsector || "",
+                        "sector": data[i].sector || "",
+                        "description": data[i].description || ""
+                    });
+                }
+
+                table.appendRows(tableData);
+                doneCallback();
+            },
+            error: function(xhr, status, error) {
+                var errMsg = xhr.responseText || error || "Unknown error";
+                tableau.abortWithError("API Error: " + errMsg + " (Check API key and network)");
             }
-        });
-
-        apiCall.done(function(response) {
-            var data = response; // The API returns an array of objects
-            var tableData = [];
-
-            // Iterate over the JSON object
-            for (var i = 0, len = data.length; i < len; i++) {
-                tableData.push({
-                    "subsector": data[i]["subsector"],
-                    "sector": data[i]["sector"],
-                    "description": data[i]["description"]
-                });
-            }
-
-            table.appendRows(tableData);
-            doneCallback();
-        });
-
-        apiCall.fail(function(xhr, textStatus, errorThrown) {
-            tableau.abortWithError("Could not load data from Sectors.app API. Check your API key and network connection. Error: " + errorThrown);
         });
     };
 
     tableau.registerConnector(myConnector);
 
-    // Create event listener for when the user submits the button
+    // On button click
     $(document).ready(function() {
         $("#submitButton").click(function() {
-            tableau.connectionName = "Sectors.app Data";
+            var apiKey = $("#apiKey").val().trim();
+
+            if (!apiKey) {
+                alert("Please enter your Sectors.app API key.");
+                return;
+            }
+
+            tableau.connectionName = "Sectors.app Subsectors";
+            tableau.connectionData = JSON.stringify({ apiKey: apiKey });
             tableau.submit();
         });
     });
