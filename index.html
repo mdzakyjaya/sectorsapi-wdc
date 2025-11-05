@@ -85,19 +85,14 @@
             myConnector.getSchema = function(schemaCallback) {
                 var cols = [
                     {
-                        id: "idx",
-                        alias: "Index",
-                        dataType: tableau.dataTypeEnum.int
-                    },
-                    {
-                        id: "sub_sector_name",
-                        alias: "Subsector Name",
+                        id: "sector",
+                        alias: "Sector",
                         dataType: tableau.dataTypeEnum.string
                     },
                     {
-                        id: "companies_count",
-                        alias: "Companies Count",
-                        dataType: tableau.dataTypeEnum.int
+                        id: "subsector",
+                        alias: "Subsector",
+                        dataType: tableau.dataTypeEnum.string
                     }
                 ];
 
@@ -131,9 +126,8 @@
                     // Process the subsectors data
                     for (var i = 0; i < data.length; i++) {
                         tableData.push({
-                            "idx": data[i].idx,
-                            "sub_sector_name": data[i].sub_sector_name,
-                            "companies_count": data[i].companies_count
+                            "sector": data[i].sector,
+                            "subsector": data[i].subsector
                         });
                     }
                     
