@@ -1,20 +1,171 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Sectors.app Connector</title>
-    <meta http-equiv="Cache-Control" content="no-store" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
+    <title>Sectors.app Subsectors Connector</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://connectors.tableau.com/libs/tableauwdc-2.3.latest.js"></script>
-    <script src="sectors-connector.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            font-size: 24px;
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #005a9e;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border-left: 4px solid #0078d4;
+            font-size: 14px;
+            color: #333;
+        }
+        .error {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #fff0f0;
+            border-left: 4px solid #d00;
+            color: #d00;
+            display: none;
+        }
+    </style>
 </head>
 <body>
-    <h1>Sectors.app Subsector Data</h1>
-    <p>Enter your API key and click to load subsector data.</p>
+    <h1>Sectors.app Subsectors Data Connector</h1>
+    
+    <div class="info">
+        Enter your Sectors.app API key to fetch subsector data into Tableau.
+    </div>
 
-    <label for="apiKey">API Key:</label><br>
-    <input type="password" id="apiKey" placeholder="Enter your Sectors.app API key" size="50" /><br><br>
+    <div id="inputForm">
+        <label for="apiKey">API Key:</label>
+        <input type="password" id="apiKey" placeholder="Enter your Sectors.app API key" />
+        
+        <button id="submitButton">Get Subsectors Data</button>
+    </div>
 
-    <button id="submitButton">Get Subsector Data</button>
+    <div id="errorMsg" class="error"></div>
+
+    <script>
+        (function() {
+            var myConnector = tableau.makeConnector();
+
+            myConnector.getSchema = function(schemaCallback) {
+                var cols = [
+                    {
+                        id: "idx",
+                        alias: "Index",
+                        dataType: tableau.dataTypeEnum.int
+                    },
+                    {
+                        id: "sub_sector_name",
+                        alias: "Subsector Name",
+                        dataType: tableau.dataTypeEnum.string
+                    },
+                    {
+                        id: "companies_count",
+                        alias: "Companies Count",
+                        dataType: tableau.dataTypeEnum.int
+                    }
+                ];
+
+                var tableSchema = {
+                    id: "sectorsSubsectors",
+                    alias: "Sectors.app Subsectors",
+                    columns: cols
+                };
+
+                schemaCallback([tableSchema]);
+            };
+
+            myConnector.getData = function(table, doneCallback) {
+                var apiKey = tableau.password;
+                
+                fetch('https://api.sectors.app/v1/subsectors/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': apiKey
+                    }
+                })
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('API request failed: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    var tableData = [];
+                    
+                    // Process the subsectors data
+                    for (var i = 0; i < data.length; i++) {
+                        tableData.push({
+                            "idx": data[i].idx,
+                            "sub_sector_name": data[i].sub_sector_name,
+                            "companies_count": data[i].companies_count
+                        });
+                    }
+                    
+                    table.appendRows(tableData);
+                    doneCallback();
+                })
+                .catch(function(error) {
+                    tableau.abortWithError("Error fetching data: " + error.message);
+                });
+            };
+
+            tableau.registerConnector(myConnector);
+
+            // UI interaction
+            document.getElementById('submitButton').addEventListener('click', function() {
+                var apiKey = document.getElementById('apiKey').value.trim();
+                var errorMsg = document.getElementById('errorMsg');
+                
+                errorMsg.style.display = 'none';
+                
+                if (!apiKey) {
+                    errorMsg.textContent = 'Please enter your API key';
+                    errorMsg.style.display = 'block';
+                    return;
+                }
+                
+                // Store API key in Tableau's password field
+                tableau.password = apiKey;
+                tableau.connectionName = "Sectors.app Subsectors";
+                tableau.submit();
+            });
+        })();
+    </script>
 </body>
 </html>
